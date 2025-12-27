@@ -3,8 +3,6 @@ import dotenv from 'dotenv';
 dotenv.config();
 import { pool } from '../db/pool.js';
 
-import { pool } from '../db/pool.js';
-
 /**
  * Middleware to check user's subscription
  * Blocks access if subscription is not valid
