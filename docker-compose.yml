@@ -1,0 +1,39 @@
+services:
+  backend:
+    build: ./Backend
+    container_name: subscriptly_backend
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: subscriptly
+      DB_USER: postgres
+      DB_PASSWORD: subscriptly@123
+    depends_on:
+      - postgres
+
+  frontend:
+    build: ./Frontend
+    container_name: subscriptly_frontend
+    ports:
+      - "5173:5173" # or your frontend dev server port
+    environment:
+      VITE_API_URL: http://localhost:3000
+    depends_on:
+      - backend
+
+  postgres:
+    image: postgres:15
+    container_name: subscriptly_db
+    environment:
+      POSTGRES_DB: subscriptly
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: subscriptly@123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

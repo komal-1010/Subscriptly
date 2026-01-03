@@ -1,7 +1,7 @@
 import express from "express"
 import authRoutes from '../routes/auth.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { checkSubscription } from '../middleware/checkSubscription.js';
+import { checkSubscription } from '../middleware/auth.js';
 
 const router = express.Router();
 const app = express();
