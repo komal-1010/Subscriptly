@@ -14,7 +14,7 @@ router.get('/dashboard', authMiddleware, checkSubscription, (req, res) => {
 });
 app.use('/api/auth', authRoutes);
 app.use('/api/users',userRoutes)
-app.user('/api/plans',planRoutes)
+app.use('/api/plans',planRoutes)
 app.get('/', (req, res) => {
   res.json({ status: 'OK' });
 });
