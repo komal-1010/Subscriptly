@@ -1,7 +1,7 @@
 import express from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import { authorizeRoles } from '../middleware/role.js';
-import { pool } from '../db/pool.js';
+import { pool } from '../db/index.js';
 
 const router = express.Router();
 
