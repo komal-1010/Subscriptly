@@ -1,5 +1,5 @@
 import express from 'express';
-import { pool } from '../db/index.js';
+import pool from '../db/index.js';
 import bcrypt from 'bcrypt';
 import { authMiddleware } from '../middleware/auth.js';
 

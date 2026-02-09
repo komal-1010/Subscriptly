@@ -1,7 +1,7 @@
 import express from 'express';
 import Stripe from 'stripe';
 import dotenv from 'dotenv';
-import { pool } from '../db/index.js';
+import pool from '../db/index.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 dotenv.config();
