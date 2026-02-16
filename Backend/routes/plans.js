@@ -22,9 +22,16 @@ router.post('/', authMiddleware, authorizeRoles(1), async (req, res) => {
 });
 
 // Any authenticated user can view plans
-router.get('/', authMiddleware, async (req, res) => {
-  const { rows } = await pool.query('SELECT * FROM plans;');
-  res.json(rows);
+router.get('/', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, name, price, duration_months, project_limit
+      FROM plans
+    `);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

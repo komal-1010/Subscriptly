@@ -27,15 +27,11 @@ router.post('/create-checkout-session', authMiddleware, async (req, res) => {
             mode: 'subscription',
             line_items: [
                 {
-                    price_data: {
-                        currency: 'usd',
-                        product_data: { name: plan.name },
-                        unit_amount: plan.price * 100, // cents
-                        recurring: { interval: 'month' }
-                    },
-                    quantity: 1,
-                },
+                    price: plan.stripe_price_id,
+                    quantity: 1
+                }
             ],
+
             success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${process.env.FRONTEND_URL}/cancel`,
             metadata: { user_id, plan_id },

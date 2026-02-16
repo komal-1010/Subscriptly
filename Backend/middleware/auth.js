@@ -44,17 +44,6 @@ export async function checkSubscription(req, res, next) {
     }
 
     const sub = rows[0];
-    const now = new Date();
-
-    // Expire active subscriptions past end date
-    if (sub.status === 'active' && new Date(sub.end_date) < now) {
-      await pool.query(
-        `UPDATE subscriptions SET status = 'expired' WHERE id = $1`,
-        [sub.id]
-      );
-      return res.status(403).json({ error: 'Subscription expired' });
-    }
-
     // Allowed states
     if (!['trialing', 'active'].includes(sub.status)) {
       return res
