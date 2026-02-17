@@ -44,12 +44,18 @@ export async function checkSubscription(req, res, next) {
     }
 
     const sub = rows[0];
-    // Allowed states
-    if (!['trialing', 'active'].includes(sub.status)) {
-      return res
-        .status(403)
-        .json({ error: `Access blocked: subscription is ${sub.status}` });
+    if (sub.status === 'past_due') {
+      if (sub.grace_period_end && new Date() < new Date(sub.grace_period_end)) {
+        req.subscription = { ...sub, graceWarning: true };
+        return next();
+      }
+      return res.status(403).json({ error: 'Grace period expired' });
     }
+
+    if (!['active', 'trialing'].includes(sub.status)) {
+      return res.status(403).json({ error: 'Subscription inactive' });
+    }
+
 
     req.subscription = sub;
     next();
