@@ -12,37 +12,37 @@ const router = express.Router();
  * 1️⃣ Create Stripe Checkout Session
  */
 router.post('/create-checkout-session', authMiddleware, async (req, res) => {
-    try {
-        const { plan_id } = req.body;
-        const user_id = req.user.id;
+  try {
+    const { plan_id } = req.body;
+    const user_id = req.user.id;
 
-        // Fetch plan info
-        const { rows: planRows } = await pool.query('SELECT * FROM plans WHERE id=$1', [plan_id]);
-        if (!planRows[0]) return res.status(404).json({ error: 'Plan not found' });
-        const plan = planRows[0];
+    // Fetch plan info
+    const { rows: planRows } = await pool.query('SELECT * FROM plans WHERE id=$1', [plan_id]);
+    if (!planRows[0]) return res.status(404).json({ error: 'Plan not found' });
+    const plan = planRows[0];
 
-        // Create Stripe Checkout Session
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            mode: 'subscription',
-            line_items: [
-                {
-                    price: plan.stripe_price_id,
-                    quantity: 1
-                }
-            ],
+    // Create Stripe Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'subscription',
+      line_items: [
+        {
+          price: plan.stripe_price_id,
+          quantity: 1
+        }
+      ],
 
-            success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${process.env.FRONTEND_URL}/cancel`,
-            metadata: { user_id, plan_id },
-        });
+      success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/cancel`,
+      metadata: { user_id: user_id, plan_id: plan_id },
+    });
 
 
-        res.json({ url: session.url });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
-    }
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post(
@@ -178,30 +178,37 @@ router.post(
         }
 
         case 'customer.subscription.updated': {
-              const subscription = event.data.object;
+          const subscription = event.data.object;
 
-              const stripeSubId = subscription.id;
+          const stripeSubId = subscription.id;
 
-              const currentPeriodEnd = new Date(
-                  subscription.current_period_end * 1000
-              );
-
-              await pool.query(
-                  `UPDATE subscriptions
+          const currentPeriodEnd = new Date(
+            subscription.current_period_end * 1000
+          );
+          if (newPlan.project_limit > oldPlan.project_limit) {
+            await pool.query(
+              `UPDATE projects
+                    SET is_active = true
+                    WHERE user_id=$1`,
+              [userId]
+            )
+          }
+          await pool.query(
+            `UPDATE subscriptions
                     SET cancel_at_period_end = $1,
                         status = $2,
                         current_period_end = $3
                     WHERE stripe_subscription_id = $4`,
-                  [
-                      subscription.cancel_at_period_end,
-                      subscription.status,
-                      currentPeriodEnd,
-                      stripeSubId
-                  ]
-              );
+            [
+              subscription.cancel_at_period_end,
+              subscription.status,
+              currentPeriodEnd,
+              stripeSubId
+            ]
+          );
 
-              break;
-          }
+          break;
+        }
         // ===============================
         // 4️⃣ Subscription Canceled
         // ===============================
@@ -243,39 +250,40 @@ router.post(
  * 3️⃣ Get current subscription
  */
 router.get('/current', authMiddleware, async (req, res) => {
-    try {
-        const user_id = req.user.id;
-        const { rows } = await pool.query(
-            `SELECT * FROM subscriptions WHERE user_id=$1 ORDER BY id DESC LIMIT 1`,
-            [user_id]
-        );
+  try {
+    const user_id = req.user.id;
+    const { rows } = await pool.query(
+      `SELECT * FROM subscriptions WHERE user_id=$1 ORDER BY id DESC LIMIT 1`,
+      [user_id]
+    );
 
-        if (rows.length === 0) return res.status(404).json({ error: 'No subscription found' });
+    if (rows.length === 0) return res.status(404).json({ error: 'No subscription found' });
 
-        res.json(rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 //cancel subscription
-router.post('/cancel',authMiddleware,async(req,res)=>{
-    try{
-        const user_id = req.user.id;
-        const { rows } = await pool.query(
-            `SELECT * FROM subscriptions WHERE user_id=$1 ORDER BY id DESC LIMIT 1`,
-            [user_id]
-        );
-        if(rows.length === 0) return res.status(404).json({ error: 'No subscription found' });
-        const sub = rows[0];
-        await stripe.subscriptions.del(sub.stripe_subscription_id);
-        await pool.query(
-            `UPDATE subscriptions SET status='canceled' WHERE id=$1`,
-            [sub.id]
-        );
-        res.json({ message: 'Subscription canceled successfully' });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+router.post('/cancel', authMiddleware, async (req, res) => {
+  try {
+    const user_id = req.user.id;
+    const { rows } = await pool.query(
+      `SELECT * FROM subscriptions WHERE user_id=$1 ORDER BY id DESC LIMIT 1`,
+      [user_id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'No subscription found' });
+    const sub = rows[0];
+    await stripe.subscriptions.del(sub.stripe_subscription_id);
+    await pool.query(
+      `UPDATE subscriptions SET status='canceled' WHERE id=$1`,
+      [sub.id]
+    );
+    res.json({ message: 'Subscription canceled successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 export default router;

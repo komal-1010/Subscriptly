@@ -5,6 +5,7 @@ import planRoutes from "../routes/plans.js"
 import { authMiddleware } from '../middleware/auth.js';
 import { checkSubscription } from '../middleware/auth.js';
 import subscriptionRoutes from '../routes/subscriptions.js';
+import projectRoutes from '../routes/projects.js';
 const router = express.Router();
 const app = express();
 
@@ -16,6 +17,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users',userRoutes);
 app.use('/api/plans',planRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/projects', projectRoutes);
 app.get('/', (req, res) => {
   res.json({ status: 'OK' });
 });
