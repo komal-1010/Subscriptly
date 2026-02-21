@@ -4,11 +4,15 @@ import userRoutes from "../routes/users.js";
 import planRoutes from "../routes/plans.js"
 import { authMiddleware } from '../middleware/auth.js';
 import { checkSubscription } from '../middleware/auth.js';
-import subscriptionRoutes from '../routes/subscriptions.js';
+import subscriptionRoutes, { stripeWebhookHandler } from '../routes/subscriptions.js';
 import projectRoutes from '../routes/projects.js';
 const router = express.Router();
 const app = express();
-
+app.use(
+  '/api/subscriptions/webhook',
+  express.raw({ type: 'application/json' }),
+  stripeWebhookHandler
+);
 app.use(express.json());
 router.get('/dashboard', authMiddleware, checkSubscription, (req, res) => {
   res.json({ message: `Welcome! Your subscription status: ${req.subscription.status}` });
