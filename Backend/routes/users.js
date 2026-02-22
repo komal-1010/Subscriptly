@@ -31,11 +31,12 @@ router.get('/me', authMiddleware, async (req, res) => {
     const user = userRows[0];
     //Get subscription +plan
     const { rows: subRows } = await pool.query(
-      `SELECT s.*,p.name AS plan_name,p.project_limit
-        FROM subscriptions s
-        JOIN plans p ON s.plan_id=p.id
-        ORDER BY s.id DESC
-        LIMIT 1`,
+      `SELECT s.*, p.name AS plan_name, p.project_limit
+      FROM subscriptions s
+      JOIN plans p ON s.plan_id = p.id
+      WHERE s.user_id = $1
+      ORDER BY s.id DESC
+      LIMIT 1`,
       [userId]
     );
     let subscription = null;
