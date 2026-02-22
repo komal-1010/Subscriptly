@@ -176,30 +176,21 @@ export const stripeWebhookHandler = async (req, res) => {
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
 
-        const stripeSubId = subscription.id;
-
         const currentPeriodEnd = new Date(
           subscription.current_period_end * 1000
         );
-        if (newPlan.project_limit > oldPlan.project_limit) {
-          await pool.query(
-            `UPDATE projects
-                    SET is_active = true
-                    WHERE user_id=$1`,
-            [userId]
-          )
-        }
+
         await pool.query(
           `UPDATE subscriptions
-                    SET cancel_at_period_end = $1,
-                        status = $2,
-                        current_period_end = $3
-                    WHERE stripe_subscription_id = $4`,
+            SET cancel_at_period_end = $1,
+                status = $2,
+                current_period_end = $3
+            WHERE stripe_subscription_id = $4`,
           [
             subscription.cancel_at_period_end,
             subscription.status,
             currentPeriodEnd,
-            stripeSubId
+            subscription.id
           ]
         );
 
@@ -264,21 +255,40 @@ router.get('/current', authMiddleware, async (req, res) => {
 //cancel subscription
 router.post('/cancel', authMiddleware, async (req, res) => {
   try {
-    const user_id = req.user.id;
+    const userId = req.user.id;
+
+    // 1️⃣ Get latest subscription
     const { rows } = await pool.query(
-      `SELECT * FROM subscriptions WHERE user_id=$1 ORDER BY id DESC LIMIT 1`,
-      [user_id]
+      `SELECT stripe_subscription_id
+       FROM subscriptions
+       WHERE user_id = $1
+       ORDER BY id DESC
+       LIMIT 1`,
+      [userId]
     );
-    if (rows.length === 0) return res.status(404).json({ error: 'No subscription found' });
-    const sub = rows[0];
-    await stripe.subscriptions.del(sub.stripe_subscription_id);
-    await pool.query(
-      `UPDATE subscriptions SET status='canceled' WHERE id=$1`,
-      [sub.id]
-    );
-    res.json({ message: 'Subscription canceled successfully' });
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'No subscription found' });
+    }
+
+    const stripeSubId = rows[0].stripe_subscription_id;
+
+    if (!stripeSubId) {
+      return res.status(400).json({ error: 'Stripe subscription missing' });
+    }
+
+    // 2️⃣ Tell Stripe to cancel at period end
+    await stripe.subscriptions.update(stripeSubId, {
+      cancel_at_period_end: true
+    });
+
+    res.json({
+      message: 'Subscription will cancel at period end'
+    });
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('🔥 Cancel error:', err);
+    res.status(500).json({ error: 'Failed to cancel subscription' });
   }
 });
 
