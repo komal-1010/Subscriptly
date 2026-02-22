@@ -174,11 +174,17 @@ export const stripeWebhookHandler = async (req, res) => {
       }
 
       case 'customer.subscription.updated': {
-        const subscription = event.data.object;
+        const subEvent = event.data.object;
 
-        const currentPeriodEnd = new Date(
-          subscription.current_period_end * 1000
-        );
+        const freshSub = await stripe.subscriptions.retrieve(subEvent.id);
+
+        let currentPeriodEnd = null;
+
+        if (freshSub.current_period_end) {
+          currentPeriodEnd = new Date(
+            freshSub.current_period_end * 1000
+          );
+        }
 
         await pool.query(
           `UPDATE subscriptions
@@ -187,10 +193,10 @@ export const stripeWebhookHandler = async (req, res) => {
                 current_period_end = $3
             WHERE stripe_subscription_id = $4`,
           [
-            subscription.cancel_at_period_end,
-            subscription.status,
+            freshSub.cancel_at_period_end,
+            freshSub.status,
             currentPeriodEnd,
-            subscription.id
+            freshSub.id
           ]
         );
 
