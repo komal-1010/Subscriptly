@@ -21,50 +21,62 @@ export default router;
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    //Get user Info
+
+    // 1️⃣ Get user
     const { rows: userRows } = await pool.query(
-      'SELECt id,name,email,role_id FROM users WHERE id=$1', [userId]
+      'SELECT id, name, email, role_id FROM users WHERE id = $1',
+      [userId]
     );
+
     if (!userRows.length) {
       return res.status(404).json({ error: "User not found" });
     }
+
     const user = userRows[0];
-    //Get subscription +plan
+
+    // 2️⃣ Get subscription
     const { rows: subRows } = await pool.query(
       `SELECT s.*, p.name AS plan_name, p.project_limit
-      FROM subscriptions s
-      JOIN plans p ON s.plan_id = p.id
-      WHERE s.user_id = $1
-      ORDER BY s.id DESC
-      LIMIT 1`,
+       FROM subscriptions s
+       JOIN plans p ON s.plan_id = p.id
+       WHERE s.user_id = $1
+       ORDER BY s.id DESC
+       LIMIT 1`,
       [userId]
     );
+
     let subscription = null;
     let usage = null;
-    if (subscription.length > 0) {
+
+    if (subRows.length > 0) {
       const sub = subRows[0];
-      let graceWarning = false;
-      if (sub.status == 'past_due' && sub.grace_period_end) {
-        graceWarning = true
-      }
+
+      const { rows: usageRows } = await pool.query(
+        `SELECT COUNT(*) AS count
+         FROM projects
+         WHERE user_id = $1 AND is_active = TRUE`,
+        [userId]
+      );
+
+      subscription = {
+        status: sub.status,
+        plan: sub.plan_name,
+        currentPeriodEnd: sub.current_period_end,
+        graceWarning:
+          sub.status === 'past_due' && sub.grace_period_end,
+        cancelAtPeriodEnd: sub.cancel_at_period_end
+      };
+
+      usage = {
+        projectUsed: Number(usageRows[0].count),
+        projectLimit: sub.project_limit
+      };
     }
-    const { rows: usageRows } = await pool.query(
-      `SELECT COUNT(*) AS count FROM projects WHERE user_id=$1`,
-      [userId]
-    );
-    subscription = {
-      status: sub.status,
-      plan: sub.plan_name,
-      currentPeriodEnd: sub.end_date,
-      graceWarning
-    }
-    usage = {
-      projectUsed: usageRows[0].count,
-      projectLimit: sub.project_limit
-    }
+
     res.json({ user, subscription, usage });
+
   } catch (err) {
-    console.error(err);
+    console.error("🔥 /me error:", err);
     res.status(500).json({ error: 'Failed to retrieve user information' });
   }
 });
